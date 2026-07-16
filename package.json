@@ -1,0 +1,52 @@
+{
+  "name": "nanoclaw-onebot-napcat",
+  "version": "0.1.0",
+  "description": "NanoClaw OneBot Napcat v11 QQ Adapter",
+  "type": "module",
+  "main": "./dist/onebot-napcat.js",
+  "types": "./dist/onebot-napcat.d.ts",
+  "files": [
+    "dist",
+    ".agents/skills/add-onebot-napcat/SKILL.md",
+    "scripts/install-onebot-napcat.ts",
+    "scripts/remove-onebot-napcat.ts",
+    "README.md",
+    "REMOVE.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src test scripts",
+    "lint:fix": "eslint src test scripts --fix",
+    "e2e:health": "tsx scripts/qq-health-check.ts",
+    "e2e:verify": "tsx scripts/verify-features.ts",
+    "dev": "tsx src/onebot-napcat.ts"
+  },
+  "keywords": [
+    "nanoclaw",
+    "onebot",
+    "napcat",
+    "qq",
+    "adapter"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.18.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.0",
+    "@types/node": "^22.15.3",
+    "@types/ws": "^8.18.1",
+    "eslint": "^9.25.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.31.0",
+    "vitest": "^3.2.2",
+    "dotenv": "^16.5.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
