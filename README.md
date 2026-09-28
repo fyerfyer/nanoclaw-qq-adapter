@@ -131,6 +131,13 @@ It starts three NapCat instances:
 | `napcat-user-a` | `2157875424` | Test robot A | 3000 | 3002 | 6100 |
 | `napcat-user-b` | `2101197401` | Test robot B | 3003 | 3004 | 6101 |
 
+Each container mounts its **own** config directory (`napcat-config-test/bot`,
+`napcat-config-test/user-a`, `napcat-config-test/user-b`) so the per-account
+OneBot configs never clobber each other. These directories are gitignored —
+populate them the same way as `napcat-config/` (per-account
+`onebot11_<qq>.json` with the ports above, plus `napcat.json` and
+`webui.json`), or configure each instance through its WebUI on first run.
+
 Edit `.env.example` / `.env` to match the ports and accounts you use.
 
 ## QQ Health Check

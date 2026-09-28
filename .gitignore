@@ -5,3 +5,4 @@ dist/
 *.log
 coverage/
 napcat-config/
+napcat-config-test/

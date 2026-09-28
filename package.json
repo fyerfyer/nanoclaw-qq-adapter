@@ -22,6 +22,7 @@
     "lint:fix": "eslint src test scripts --fix",
     "e2e:health": "tsx scripts/qq-health-check.ts",
     "e2e:verify": "tsx scripts/verify-features.ts",
+    "e2e:admin": "tsx scripts/e2e-admin-test.ts",
     "dev": "tsx src/onebot-napcat.ts"
   },
   "keywords": [
