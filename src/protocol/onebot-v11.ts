@@ -202,6 +202,12 @@ export interface GetStatusResult {
   good: boolean;
 }
 
+export interface GroupMemberInfo {
+  user_id: number;
+  nickname: string;
+  card?: string;
+}
+
 export type OneBotApiResult =
   | { message_id: number }
   | LoginInfo
@@ -214,6 +220,7 @@ export const ACTIONS = {
   SEND_GROUP_MSG: 'send_group_msg',
   GET_LOGIN_INFO: 'get_login_info',
   GET_STATUS: 'get_status',
+  GET_GROUP_MEMBER_INFO: 'get_group_member_info',
   SET_GROUP_BAN: 'set_group_ban',
   SET_GROUP_KICK: 'set_group_kick',
 } as const;

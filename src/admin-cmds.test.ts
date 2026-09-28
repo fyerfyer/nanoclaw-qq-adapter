@@ -126,6 +126,30 @@ describe('handleAdminCommand', () => {
     expect(ctx.replies[0]).toContain('禁言 120 秒');
   });
 
+  it('/mute shows the member card with QQ number', async () => {
+    const ctx = makeCtx(baseConfig(), groupEvent(111), 'qq:group:12345');
+    ctx.callMock
+      .mockResolvedValueOnce(null) // set_group_ban
+      .mockResolvedValueOnce({ user_id: 222, nickname: 'Nick', card: '群名片' });
+
+    await handleAdminCommand(ctx, '/mute 222 60');
+    expect(ctx.callMock).toHaveBeenCalledWith('get_group_member_info', {
+      group_id: 12345,
+      user_id: 222,
+    });
+    expect(ctx.replies[0]).toContain('已禁言 60 秒 群名片(222)');
+  });
+
+  it('/kick falls back to bare QQ when member lookup fails', async () => {
+    const ctx = makeCtx(baseConfig(), groupEvent(111), 'qq:group:12345');
+    ctx.callMock
+      .mockResolvedValueOnce(null) // set_group_kick
+      .mockRejectedValue(new Error('member not found')); // get_group_member_info
+
+    await handleAdminCommand(ctx, '/kick 222');
+    expect(ctx.replies[0]).toContain('已将 222 移出群 12345');
+  });
+
   it('/kick removes user from the current group', async () => {
     const ctx = makeCtx(baseConfig(), groupEvent(111), 'qq:group:12345');
     ctx.callMock.mockResolvedValue(null);

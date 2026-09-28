@@ -15,6 +15,7 @@ import {
   type OneBotEvent,
   type OneBotApiResult,
   type GetStatusResult,
+  type GroupMemberInfo,
   type LoginInfo,
 } from './protocol/onebot-v11.js';
 import {
@@ -107,7 +108,8 @@ async function handleMute(
       duration,
     });
     const action = duration === 0 ? '解除禁言' : `禁言 ${duration} 秒`;
-    await ctx.sendReply(`已${action} ${userId}`);
+    const display = await resolveDisplayName(ctx, groupId, userId);
+    await ctx.sendReply(`已${action} ${display}`);
   } catch (err) {
     await ctx.sendReply(`禁言操作失败：${formatApiError(err)}`);
   }
@@ -126,7 +128,8 @@ async function handleKick(
       user_id: userId,
       reject_add_request: false,
     });
-    await ctx.sendReply(`已将 ${userId} 移出群 ${groupId}`);
+    const display = await resolveDisplayName(ctx, groupId, userId);
+    await ctx.sendReply(`已将 ${display} 移出群 ${groupId}`);
   } catch (err) {
     await ctx.sendReply(`踢人操作失败：${formatApiError(err)}`);
   }
@@ -240,6 +243,28 @@ async function parseGroupUserArgs(
 
   await ctx.sendReply('该命令仅支持私聊或群聊');
   return { duration: defaultDuration };
+}
+
+/**
+ * Best-effort human-readable name for a group member: group card, then
+ * nickname, then the bare QQ number when the lookup fails.
+ */
+async function resolveDisplayName(
+  ctx: AdminCommandContext,
+  groupId: number,
+  userId: number,
+): Promise<string> {
+  try {
+    const info = await ctx.client.call<GroupMemberInfo>(
+      ACTIONS.GET_GROUP_MEMBER_INFO,
+      { group_id: groupId, user_id: userId },
+    );
+    const name = info.card || info.nickname;
+    if (name) return `${name}(${userId})`;
+  } catch {
+    // Fall through to the bare QQ number.
+  }
+  return String(userId);
 }
 
 function extractSenderId(event: OneBotEvent): string | undefined {
