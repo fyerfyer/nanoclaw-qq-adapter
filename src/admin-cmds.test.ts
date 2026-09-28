@@ -170,4 +170,38 @@ describe('handleAdminCommand', () => {
     expect(config.blockedGroups.has('10')).toBe(true);
     expect(config.allowedGroups.has('10')).toBe(false);
   });
+
+  it('/mute maps NOT_GROUP_ADMIN to a plain explanation', async () => {
+    const ctx = makeCtx(baseConfig(), groupEvent(111), 'qq:group:12345');
+    ctx.callMock.mockRejectedValue(
+      new Error('OneBot API error: 1200 ERR_NOT_GROUP_ADMIN'),
+    );
+
+    const handled = await handleAdminCommand(ctx, '/mute 222 60');
+    expect(handled).toBe(true);
+    expect(ctx.replies[0]).toContain('机器人不是该群管理员');
+    expect(ctx.replies[0]).not.toContain('OneBot API error');
+  });
+
+  it('/kick maps get-Uid Error to a plain explanation', async () => {
+    const ctx = makeCtx(baseConfig(), groupEvent(111), 'qq:group:12345');
+    ctx.callMock.mockRejectedValue(
+      new Error('OneBot API error: 1200 get Uid Error'),
+    );
+
+    const handled = await handleAdminCommand(ctx, '/kick 123456789');
+    expect(handled).toBe(true);
+    expect(ctx.replies[0]).toContain('不在该群内或不存在');
+  });
+
+  it('keeps unknown OneBot errors with code and wording', async () => {
+    const ctx = makeCtx(baseConfig(), groupEvent(111), 'qq:group:12345');
+    ctx.callMock.mockRejectedValue(
+      new Error('OneBot API error: 1400 something weird'),
+    );
+
+    await handleAdminCommand(ctx, '/kick 123456789');
+    expect(ctx.replies[0]).toContain('1400');
+    expect(ctx.replies[0]).toContain('something weird');
+  });
 });

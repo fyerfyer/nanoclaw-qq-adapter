@@ -204,14 +204,11 @@ async function main(): Promise<void> {
     expectContain(reply2, '解除禁言');
   });
 
-  await test('/kick on unknown QQ returns failure feedback', async () => {
+  await test('/kick on unknown QQ explains the cause', async () => {
     botMessages.length = 0;
     await sendGroupText('/kick 123456789');
-    const reply = await waitForBotReply(
-      (t) => t.includes('踢人操作失败') || t.includes('移出群'),
-    );
-    // Either the API error wording or a success message proves the command ran.
-    expectContain(reply, '踢人操作失败');
+    const reply = await waitForBotReply((t) => t.includes('不在该群内'));
+    expectContain(reply, '目标 QQ 不在该群内或不存在');
   });
 
   await test('/allow user adds to allowlist', async () => {

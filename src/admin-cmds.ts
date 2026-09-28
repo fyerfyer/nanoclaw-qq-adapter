@@ -82,7 +82,7 @@ async function handleStatus(ctx: AdminCommandContext): Promise<void> {
         `登录：${login.nickname || ''} (${login.user_id})`,
     );
   } catch (err) {
-    await ctx.sendReply(`获取状态失败：${formatError(err)}`);
+    await ctx.sendReply(`获取状态失败：${formatApiError(err)}`);
   }
 }
 
@@ -109,7 +109,7 @@ async function handleMute(
     const action = duration === 0 ? '解除禁言' : `禁言 ${duration} 秒`;
     await ctx.sendReply(`已${action} ${userId}`);
   } catch (err) {
-    await ctx.sendReply(`禁言操作失败：${formatError(err)}`);
+    await ctx.sendReply(`禁言操作失败：${formatApiError(err)}`);
   }
 }
 
@@ -128,7 +128,7 @@ async function handleKick(
     });
     await ctx.sendReply(`已将 ${userId} 移出群 ${groupId}`);
   } catch (err) {
-    await ctx.sendReply(`踢人操作失败：${formatError(err)}`);
+    await ctx.sendReply(`踢人操作失败：${formatApiError(err)}`);
   }
 }
 
@@ -249,7 +249,25 @@ function extractSenderId(event: OneBotEvent): string | undefined {
   return undefined;
 }
 
-function formatError(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  return String(err);
+/**
+ * Translates raw OneBot API errors into short, actionable Chinese feedback.
+ * Known NapCat wordings are mapped to plain causes; anything else keeps the
+ * original code and wording so admins can still report the exact failure.
+ */
+function formatApiError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  const match = /OneBot API error:\s*(\d+)\s*(.*)/.exec(raw);
+  if (!match) return raw;
+
+  const code = match[1];
+  const wording = (match[2] || '').trim();
+
+  if (/NOT_GROUP_ADMIN/i.test(wording)) {
+    return '机器人不是该群管理员，请先在群设置中把机器人设为管理员';
+  }
+  if (/get uid error/i.test(wording)) {
+    return '目标 QQ 不在该群内或不存在，请检查 QQ 号是否正确';
+  }
+
+  return `OneBot 接口错误（码 ${code}）${wording ? `：${wording}` : ''}`;
 }
