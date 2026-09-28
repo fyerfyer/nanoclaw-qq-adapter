@@ -1,10 +1,7 @@
 import type { NapcatConfig } from '../config.js';
 import type { OutboundMessage } from '../vendor/nanoclaw-adapter-types.js';
 import type { OneBotWsClient } from '../client/onebot-ws-client.js';
-import type {
-  MessageSegment,
-  OneBotApiResult,
-} from '../protocol/onebot-v11.js';
+import type { MessageSegment } from '../protocol/onebot-v11.js';
 import { ACTIONS } from '../protocol/onebot-v11.js';
 import {
   buildBase64Segment,
@@ -22,12 +19,16 @@ export interface OutboundChatContent {
   attachments?: MediaAttachment[];
 }
 
+interface SendResult {
+  message_id?: number;
+}
+
 export async function deliver(
   options: DeliverOptions,
   platformId: string,
   _threadId: string | null,
   message: OutboundMessage,
-): Promise<void> {
+): Promise<string | undefined> {
   const { text = '', attachments } = extractContent(message);
   const target = parsePlatformId(platformId);
 
@@ -35,17 +36,24 @@ export async function deliver(
     buildBase64Segment(mimeTypeToSegmentType(a.mimeType), a.data, a.name),
   );
 
+  // Host-provided outbox files (Buffer payloads) ride along too.
+  const fileSegments: MessageSegment[] = (message.files ?? []).map((f) =>
+    buildBase64Segment(segmentTypeForFilename(f.filename), f.data.toString('base64'), f.filename),
+  );
+
   const chunks = splitText(text, options.config.maxTextLength);
 
-  // If there is no text but there are attachments, still send one message.
+  // If there is no text but there are attachments/files, still send one message.
   const messageCount = Math.max(1, chunks.length);
+
+  let firstMessageId: string | undefined;
 
   for (let i = 0; i < messageCount; i++) {
     const segments: MessageSegment[] = [];
 
     // Attachments ride along with the first message only.
     if (i === 0) {
-      segments.push(...attachmentSegments);
+      segments.push(...attachmentSegments, ...fileSegments);
     }
 
     if (chunks[i]) {
@@ -54,20 +62,43 @@ export async function deliver(
 
     if (segments.length === 0) continue;
 
+    let result: SendResult | null = null;
     if (target.type === 'private') {
-      await options.client.call<OneBotApiResult>(ACTIONS.SEND_PRIVATE_MSG, {
+      result = await options.client.call<SendResult>(ACTIONS.SEND_PRIVATE_MSG, {
         user_id: target.userId,
         message: segments,
       });
     } else if (target.type === 'group') {
-      await options.client.call<OneBotApiResult>(ACTIONS.SEND_GROUP_MSG, {
+      result = await options.client.call<SendResult>(ACTIONS.SEND_GROUP_MSG, {
         group_id: target.groupId,
         message: segments,
       });
     } else {
       throw new Error(`Unsupported OneBot platform ID: ${platformId}`);
     }
+
+    if (firstMessageId === undefined && result?.message_id !== undefined) {
+      firstMessageId = String(result.message_id);
+    }
   }
+
+  return firstMessageId;
+}
+
+const IMAGE_EXTENSIONS = new Set([
+  'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp',
+]);
+const RECORD_EXTENSIONS = new Set([
+  'mp3', 'wav', 'ogg', 'm4a', 'flac', 'amr', 'silk', 'aac',
+]);
+
+function segmentTypeForFilename(
+  filename: string,
+): 'image' | 'record' | 'file' {
+  const ext = filename.split('.').pop()?.toLowerCase() ?? '';
+  if (IMAGE_EXTENSIONS.has(ext)) return 'image';
+  if (RECORD_EXTENSIONS.has(ext)) return 'record';
+  return 'file';
 }
 
 function extractContent(message: OutboundMessage): OutboundChatContent {

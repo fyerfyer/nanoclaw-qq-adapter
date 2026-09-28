@@ -184,17 +184,17 @@ pnpm build
 
 ## Integrating into NanoClaw Host
 
-This repository is designed to be installed into a NanoClaw v2 fork under `src/channels/onebot-napcat/`. The recommended way is the `/add-onebot-napcat` skill (see above). For manual integration:
+This repository is designed to be installed into a NanoClaw v2 fork under `src/channels/onebot-napcat/`. The recommended way is the `/add-onebot-napcat` skill (see above). For manual integration, run the same steps the installer performs:
 
-1. Copy `src/` into `src/channels/onebot-napcat/`.
-2. Replace the vendored type imports (`src/vendor/nanoclaw-adapter-types.js`) with imports from `../adapter.js`.
-3. Register the adapter in the host's channel registry:
+1. Copy the runtime source (skip `*.test.ts`) into `src/channels/onebot-napcat/`.
+2. Rewrite the vendored imports:
+   - `./vendor/nanoclaw-adapter-types.js` → `../adapter.js`
+   - `../vendor/nanoclaw-adapter-types.js` → `../../adapter.js`
+   - `./vendor/channel-registry.js` → `../channel-registry.js`
+3. Delete the copied `vendor/` directory.
+4. Append `import './onebot-napcat/onebot-napcat.js';` to `src/channels/index.ts`.
 
-```ts
-import { createOneBotNapCatAdapter } from './channels/onebot-napcat/onebot-napcat.js';
-
-registerChannel(createOneBotNapCatAdapter());
-```
+The adapter self-registers on import via `registerChannelAdapter('onebot-napcat', …)`; the factory returns `null` when `NAPCAT_WS_URL` is unset so the host skips the channel gracefully.
 
 ## Project Structure
 

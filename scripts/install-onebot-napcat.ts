@@ -27,6 +27,7 @@ import { dirname, join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 const WS_VERSION = '^8.18.2';
+const WS_TYPES_VERSION = '^8.18.1';
 
 const ENV_VARS = [
   '# NanoClaw OneBot Napcat adapter settings',
@@ -71,7 +72,7 @@ function main(): void {
   rewriteTypeImports(targetDir);
   removeVendorTypes(targetDir);
   wireBarrel(hostDir);
-  ensureDependency(hostDir);
+  ensureDependencies(hostDir);
   seedEnv(hostDir);
 
   if (!options.skipPnpm) {
@@ -123,7 +124,6 @@ function validateHost(hostDir: string): void {
   const required = [
     join(hostDir, 'package.json'),
     join(hostDir, 'src', 'channels', 'index.ts'),
-    join(hostDir, '.env'),
   ];
 
   for (const file of required) {
@@ -138,7 +138,11 @@ function validateHost(hostDir: string): void {
 function copySource(sourceDir: string, targetDir: string): void {
   log('info', `Copying ${sourceDir} -> ${targetDir}`);
   rmSync(targetDir, { recursive: true, force: true });
-  cpSync(sourceDir, targetDir, { recursive: true });
+  // Test files reference repo-local fixtures; the host only needs runtime code.
+  cpSync(sourceDir, targetDir, {
+    recursive: true,
+    filter: (src) => !src.endsWith('.test.ts'),
+  });
 }
 
 function rewriteTypeImports(targetDir: string): void {
@@ -148,13 +152,23 @@ function rewriteTypeImports(targetDir: string): void {
   for (const file of files) {
     const original = readFileSync(file, 'utf-8');
     const updated = original
+      // Top-level module (./vendor/… → host src/channels/…)
       .replace(
         /from\s+['"]\.\/vendor\/nanoclaw-adapter-types\.js['"]/g,
         "from '../adapter.js'",
       )
       .replace(
+        /from\s+['"]\.\/vendor\/channel-registry\.js['"]/g,
+        "from '../channel-registry.js'",
+      )
+      // Nested modules (../vendor/… → up two levels to src/channels/…)
+      .replace(
         /from\s+['"]\.\.\/vendor\/nanoclaw-adapter-types\.js['"]/g,
-        "from '../adapter.js'",
+        "from '../../adapter.js'",
+      )
+      .replace(
+        /from\s+['"]\.\.\/vendor\/channel-registry\.js['"]/g,
+        "from '../../channel-registry.js'",
       );
 
     if (updated !== original) {
@@ -163,7 +177,7 @@ function rewriteTypeImports(targetDir: string): void {
     }
   }
 
-  log('info', `Rewrote type imports in ${rewritten} file(s)`);
+  log('info', `Rewrote vendored imports in ${rewritten} file(s)`);
 }
 
 function removeVendorTypes(targetDir: string): void {
@@ -176,7 +190,7 @@ function removeVendorTypes(targetDir: string): void {
 
 function wireBarrel(hostDir: string): void {
   const barrelPath = join(hostDir, 'src', 'channels', 'index.ts');
-  const importLine = "import './onebot-napcat.js';";
+  const importLine = "import './onebot-napcat/onebot-napcat.js';";
   const content = readFileSync(barrelPath, 'utf-8');
 
   if (content.includes(importLine)) {
@@ -189,26 +203,44 @@ function wireBarrel(hostDir: string): void {
   log('info', 'Wired channel barrel');
 }
 
-function ensureDependency(hostDir: string): void {
+function ensureDependencies(hostDir: string): void {
   const packagePath = join(hostDir, 'package.json');
   const pkg = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
     dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
   };
 
-  if (pkg.dependencies?.ws) {
-    log('info', 'Host already depends on ws; skipping dependency update');
-    return;
+  let changed = false;
+
+  if (!pkg.dependencies?.ws) {
+    pkg.dependencies = pkg.dependencies ?? {};
+    pkg.dependencies.ws = WS_VERSION;
+    changed = true;
+    log('info', `Added ws@${WS_VERSION} to host dependencies`);
   }
 
-  pkg.dependencies = pkg.dependencies ?? {};
-  pkg.dependencies.ws = WS_VERSION;
+  if (!pkg.devDependencies?.['@types/ws']) {
+    pkg.devDependencies = pkg.devDependencies ?? {};
+    pkg.devDependencies['@types/ws'] = WS_TYPES_VERSION;
+    changed = true;
+    log('info', `Added @types/ws@${WS_TYPES_VERSION} to host devDependencies`);
+  }
 
-  writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf-8');
-  log('info', `Added ws@${WS_VERSION} to host dependencies`);
+  if (changed) {
+    writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf-8');
+  } else {
+    log('info', 'Host already has ws dependencies; skipping');
+  }
 }
 
 function seedEnv(hostDir: string): void {
   const envPath = join(hostDir, '.env');
+
+  if (!existsSync(envPath)) {
+    writeFileSync(envPath, '', 'utf-8');
+    log('info', 'Created empty .env');
+  }
+
   const content = readFileSync(envPath, 'utf-8');
 
   if (content.includes('NAPCAT_WS_URL')) {

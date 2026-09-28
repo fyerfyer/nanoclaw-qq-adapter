@@ -39,7 +39,6 @@ const IMAGE_BASE64 = readFileSync(
 const adapter = createOneBotNapCatAdapter();
 
 const setup: ChannelSetup = {
-  conversations: [],
   onInbound: (platformId, threadId, message) => {
     const content = message.content as {
       sender?: string;
@@ -69,8 +68,14 @@ const setup: ChannelSetup = {
       );
     }
   },
+  onInboundEvent: () => {
+    // CLI admin transport only; not used by this harness.
+  },
   onMetadata: (platformId, name, isGroup) => {
     console.log('[verify] metadata', { platformId, name, isGroup });
+  },
+  onAction: () => {
+    // QQ has no card buttons; never called.
   },
 };
 

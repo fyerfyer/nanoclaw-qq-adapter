@@ -7,9 +7,11 @@ import { checkAccess } from './allowlist.js';
 import { handleAdminCommand } from './admin-cmds.js';
 import type {
   ChannelAdapter,
+  ChannelDefaults,
   ChannelSetup,
   OutboundMessage,
 } from './vendor/nanoclaw-adapter-types.js';
+import { registerChannelAdapter } from './vendor/channel-registry.js';
 import {
   ACTIONS,
   isHeartbeatEvent,
@@ -28,15 +30,50 @@ export interface OneBotNapcatAdapterOptions {
   logger?: Logger;
 }
 
+/**
+ * Wiring-time defaults declared for the QQ channel.
+ * - DM: every message engages (QQ DMs are always directed at the bot).
+ * - Group: only @bot mentions engage, then stick for the session.
+ */
+const CHANNEL_DEFAULTS: ChannelDefaults = {
+  dm: {
+    engageMode: 'pattern',
+    engagePattern: '.',
+    threads: false,
+    unknownSenderPolicy: 'decline_notify',
+  },
+  group: {
+    engageMode: 'mention-sticky',
+    threads: false,
+    unknownSenderPolicy: 'request_approval',
+  },
+  mentions: 'platform',
+};
+
 export function createOneBotNapCatAdapter(
   options: OneBotNapcatAdapterOptions = {},
 ): ChannelAdapter {
   return new OneBotNapcatAdapter(options);
 }
 
+/**
+ * Host-facing factory: returns null when the NapCat credentials are missing
+ * so the host skips this channel instead of failing startup.
+ */
+export function oneBotNapCatAdapterFactory(): ChannelAdapter | null {
+  try {
+    loadConfig();
+  } catch {
+    return null;
+  }
+  return createOneBotNapCatAdapter();
+}
+
 class OneBotNapcatAdapter implements ChannelAdapter {
   name = 'onebot-napcat';
   channelType = 'qq';
+  supportsThreads = false;
+  defaults = CHANNEL_DEFAULTS;
 
   private config!: NapcatConfig;
   private client!: OneBotWsClient;
@@ -85,13 +122,13 @@ class OneBotNapcatAdapter implements ChannelAdapter {
     platformId: string,
     threadId: string | null,
     message: OutboundMessage,
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     this.logger.info('Delivering outbound message', {
       platformId,
       threadId,
       kind: message.kind,
     });
-    await deliver(
+    return deliver(
       { config: this.config, client: this.client },
       platformId,
       threadId,
@@ -158,7 +195,7 @@ class OneBotNapcatAdapter implements ChannelAdapter {
       attachments: content.attachments?.length ?? 0,
     });
 
-    this.setupConfig?.onInbound(
+    void this.setupConfig?.onInbound(
       result.platformId,
       result.threadId,
       result.inboundMessage,
@@ -255,3 +292,10 @@ function createConsoleLogger(): Logger {
       console.error(`[onebot-napcat] ${message}`, ...args),
   };
 }
+
+// Self-register on import (NanoClaw channel barrel convention). The vendored
+// shim is a no-op locally; in the host this hits the real channel registry.
+registerChannelAdapter('onebot-napcat', {
+  factory: oneBotNapCatAdapterFactory,
+  defaults: CHANNEL_DEFAULTS,
+});

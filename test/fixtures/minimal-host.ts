@@ -20,13 +20,18 @@ export class MinimalHost {
 
   get setup(): ChannelSetup {
     return {
-      conversations: [],
       onInbound: (platformId, threadId, message) => {
         this.inbound.push({ platformId, threadId, message });
+      },
+      onInboundEvent: () => {
+        // Not exercised by this fixture.
       },
       onMetadata: (_platformId, name) => {
         // Exposed for debugging; tests can spy if needed.
         console.log('[minimal-host] metadata', { name });
+      },
+      onAction: () => {
+        // QQ has no card buttons; never called.
       },
     };
   }

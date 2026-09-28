@@ -39,9 +39,17 @@ const adapter = createOneBotNapCatAdapter({
 });
 
 const setup: ChannelSetup = {
-  conversations: [],
   onInbound: () => {
     inboundCount++;
+  },
+  onInboundEvent: () => {
+    // CLI admin transport only; not used by this harness.
+  },
+  onMetadata: () => {
+    // Not exercised here.
+  },
+  onAction: () => {
+    // QQ has no card buttons; never called.
   },
 };
 

@@ -78,6 +78,8 @@ async function privateMessageToInbound(
         replyToMessageId,
       }),
       timestamp: secondsToIso(event.time),
+      isMention: true,
+      isGroup: false,
     },
   };
 }
@@ -115,6 +117,8 @@ async function groupMessageToInbound(
         replyToMessageId,
       }),
       timestamp: secondsToIso(event.time),
+      isMention,
+      isGroup: true,
     },
   };
 }

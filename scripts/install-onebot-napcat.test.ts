@@ -55,7 +55,7 @@ describe('install-onebot-napcat', () => {
     runRemove(hostDir);
   });
 
-  it('copies adapter source into the host and rewrites type imports', () => {
+  it('copies adapter source into the host and rewrites vendored imports', () => {
     const result = runInstall(hostDir);
     expect(result.status).toBe(0);
     expect(result.stderr).toBe('');
@@ -65,12 +65,31 @@ describe('install-onebot-napcat', () => {
 
     const adapterContent = readFileSync(adapterFile, 'utf-8');
     expect(adapterContent).toContain("from '../adapter.js'");
+    expect(adapterContent).toContain("from '../channel-registry.js'");
     expect(adapterContent).not.toContain('vendor/nanoclaw-adapter-types');
+    expect(adapterContent).not.toContain('vendor/channel-registry');
 
+    // Nested modules resolve two levels up to src/channels/.
     const inboundFile = join(hostDir, 'src', 'channels', 'onebot-napcat', 'inbound', 'event-to-inbound.ts');
     const inboundContent = readFileSync(inboundFile, 'utf-8');
-    expect(inboundContent).toContain("from '../adapter.js'");
+    expect(inboundContent).toContain("from '../../adapter.js'");
     expect(inboundContent).not.toContain('vendor/nanoclaw-adapter-types');
+  });
+
+  it('does not copy test files into the host', () => {
+    runInstall(hostDir);
+    const testFile = join(hostDir, 'src', 'channels', 'onebot-napcat', 'admin-cmds.test.ts');
+    expect(existsSync(testFile)).toBe(false);
+  });
+
+  it('adds ws and @types/ws dependencies to the host', () => {
+    runInstall(hostDir);
+    const pkg = JSON.parse(readFileSync(join(hostDir, 'package.json'), 'utf-8')) as {
+      dependencies: Record<string, string>;
+      devDependencies: Record<string, string>;
+    };
+    expect(pkg.dependencies.ws).toBe('^8.18.2');
+    expect(pkg.devDependencies['@types/ws']).toBe('^8.18.1');
   });
 
   it('removes the vendored type declaration directory', () => {
@@ -83,16 +102,8 @@ describe('install-onebot-napcat', () => {
     runInstall(hostDir);
     const barrelPath = join(hostDir, 'src', 'channels', 'index.ts');
     const content = readFileSync(barrelPath, 'utf-8');
-    expect(content).toContain("import './onebot-napcat.js';");
-    expect(content.split("import './onebot-napcat.js';").length - 1).toBe(1);
-  });
-
-  it('adds ws dependency to the host', () => {
-    runInstall(hostDir);
-    const pkg = JSON.parse(readFileSync(join(hostDir, 'package.json'), 'utf-8')) as {
-      dependencies: Record<string, string>;
-    };
-    expect(pkg.dependencies.ws).toBe('^8.18.2');
+    expect(content).toContain("import './onebot-napcat/onebot-napcat.js';");
+    expect(content.split("import './onebot-napcat/onebot-napcat.js';").length - 1).toBe(1);
   });
 
   it('seeds .env with Napcat variables while preserving existing values', () => {
@@ -110,7 +121,7 @@ describe('install-onebot-napcat', () => {
 
     const barrelPath = join(hostDir, 'src', 'channels', 'index.ts');
     const content = readFileSync(barrelPath, 'utf-8');
-    expect(content.split("import './onebot-napcat.js';").length - 1).toBe(1);
+    expect(content.split("import './onebot-napcat/onebot-napcat.js';").length - 1).toBe(1);
   });
 });
 
@@ -135,7 +146,7 @@ describe('remove-onebot-napcat', () => {
 
     const barrelPath = join(hostDir, 'src', 'channels', 'index.ts');
     const content = readFileSync(barrelPath, 'utf-8');
-    expect(content).not.toContain("import './onebot-napcat.js';");
+    expect(content).not.toContain("import './onebot-napcat/onebot-napcat.js';");
     expect(content).toContain("import './cli.js';");
   });
 

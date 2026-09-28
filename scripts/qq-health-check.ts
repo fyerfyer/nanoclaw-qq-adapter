@@ -22,7 +22,6 @@ import type { ChannelSetup } from '../src/vendor/nanoclaw-adapter-types.js';
 const adapter = createOneBotNapCatAdapter();
 
 const setup: ChannelSetup = {
-  conversations: [],
   onInbound: (platformId, threadId, message) => {
     const content = message.content as {
       sender?: string;
@@ -52,8 +51,14 @@ const setup: ChannelSetup = {
         console.error('[health-check] failed to deliver echo', err);
       });
   },
+  onInboundEvent: () => {
+    // CLI admin transport only; not used by this harness.
+  },
   onMetadata: (platformId, name, isGroup) => {
     console.log('[health-check] metadata', { platformId, name, isGroup });
+  },
+  onAction: () => {
+    // QQ has no card buttons; never called.
   },
 };
 

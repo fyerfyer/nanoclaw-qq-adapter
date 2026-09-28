@@ -96,7 +96,7 @@ function removeAdapterDirectory(hostDir: string): void {
 function unwireBarrel(hostDir: string): void {
   const barrelPath = join(hostDir, 'src', 'channels', 'index.ts');
   const content = readFileSync(barrelPath, 'utf-8');
-  const importLine = "import './onebot-napcat.js';";
+  const importLine = "import './onebot-napcat/onebot-napcat.js';";
 
   if (!content.includes(importLine)) {
     log('info', 'Channel barrel did not reference onebot-napcat');
@@ -113,18 +113,29 @@ function removeDependency(hostDir: string): void {
   const packagePath = join(hostDir, 'package.json');
   const pkg = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
     dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
   };
 
-  if (!pkg.dependencies?.ws) {
+  let changed = false;
+
+  if (pkg.dependencies?.ws) {
+    delete pkg.dependencies.ws;
+    changed = true;
+  }
+  if (pkg.devDependencies?.['@types/ws']) {
+    delete pkg.devDependencies['@types/ws'];
+    changed = true;
+  }
+
+  if (!changed) {
     log('info', 'Host does not depend on ws; skipping dependency update');
     return;
   }
 
-  delete pkg.dependencies.ws;
   writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf-8');
   log(
     'warn',
-    'Removed ws dependency from host package.json. If other channels rely on ws, re-add it manually.',
+    'Removed ws and @types/ws from host package.json. If other channels rely on ws, re-add them manually.',
   );
 }
 
