@@ -23,14 +23,22 @@ import { readFileSync } from 'node:fs';
 import { createOneBotNapCatAdapter } from '../src/onebot-napcat.js';
 import type { ChannelSetup } from '../src/vendor/nanoclaw-adapter-types.js';
 
-// Make User-B an admin for this verification run.
-process.env.NAPCAT_ADMINS = '2101197401';
+function requiredNumber(name: string): number {
+  const value = process.env[name]?.trim();
+  if (!value || !/^\d+$/.test(value)) {
+    throw new Error(`Set ${name} to a numeric QQ/group ID before running this E2E test`);
+  }
+  return Number(value);
+}
 
-const USER_B_HTTP = 'http://127.0.0.1:3003';
-const TOKEN = process.env.NAPCAT_ACCESS_TOKEN || 'nanoclaw-test-token';
-const BOT_QQ = 3384461856;
-const USER_B_QQ = 2101197401;
-const GROUP_ID = 922216566;
+const USER_B_QQ = requiredNumber('NAPCAT_USER_B_ACCOUNT');
+const BOT_QQ = requiredNumber('NAPCAT_BOT_ACCOUNT');
+const GROUP_ID = requiredNumber('NAPCAT_TEST_GROUP_ID');
+// Make the configured test user an adapter admin for this verification run.
+process.env.NAPCAT_ADMINS = String(USER_B_QQ);
+
+const USER_B_HTTP = process.env.NAPCAT_USER_B_HTTP_URL || `http://127.0.0.1:${process.env.NAPCAT_USER_B_HTTP_PORT || '3003'}`;
+const TOKEN = process.env.NAPCAT_ACCESS_TOKEN || '';
 
 const IMAGE_BASE64 = readFileSync(
   new URL('../image.jpg', import.meta.url),

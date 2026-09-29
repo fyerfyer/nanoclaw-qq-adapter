@@ -7,7 +7,7 @@ services:
     environment:
       - NAPCAT_UID=${NAPCAT_UID:-1000}
       - NAPCAT_GID=${NAPCAT_GID:-1000}
-      - ACCOUNT=${NAPCAT_BOT_ACCOUNT:-3384461856}
+      - ACCOUNT=${NAPCAT_BOT_ACCOUNT:?Set NAPCAT_BOT_ACCOUNT in .env}
     ports:
       # OneBot v11 forward WebSocket server (Adapter connects here).
       - "${NAPCAT_BOT_WS_PORT:-3001}:3001"
@@ -29,7 +29,7 @@ services:
     environment:
       - NAPCAT_UID=${NAPCAT_UID:-1000}
       - NAPCAT_GID=${NAPCAT_GID:-1000}
-      - ACCOUNT=${NAPCAT_USER_A_ACCOUNT:-2157875424}
+      - ACCOUNT=${NAPCAT_USER_A_ACCOUNT:?Set NAPCAT_USER_A_ACCOUNT in .env for the multi-account test stack}
     ports:
       # OneBot v11 HTTP API (MCP sends messages here).
       - "${NAPCAT_USER_A_HTTP_PORT:-3000}:3000"
@@ -51,7 +51,7 @@ services:
     environment:
       - NAPCAT_UID=${NAPCAT_UID:-1000}
       - NAPCAT_GID=${NAPCAT_GID:-1000}
-      - ACCOUNT=${NAPCAT_USER_B_ACCOUNT:-YOUR_THIRD_QQ_HERE}
+      - ACCOUNT=${NAPCAT_USER_B_ACCOUNT:?Set NAPCAT_USER_B_ACCOUNT in .env for the multi-account test stack}
     ports:
       # OneBot v11 HTTP API (optional second MCP target).
       - "${NAPCAT_USER_B_HTTP_PORT:-3003}:3003"

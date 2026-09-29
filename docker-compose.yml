@@ -7,7 +7,7 @@ services:
     environment:
       - NAPCAT_UID=${NAPCAT_UID:-1000}
       - NAPCAT_GID=${NAPCAT_GID:-1000}
-      - ACCOUNT=${NAPCAT_BOT_ACCOUNT:-3384461856}
+      - ACCOUNT=${NAPCAT_BOT_ACCOUNT:?Set NAPCAT_BOT_ACCOUNT in .env}
     ports:
       # OneBot v11 forward WebSocket server (Adapter connects here).
       - "${NAPCAT_BOT_WS_PORT:-3001}:3001"
@@ -21,32 +21,9 @@ services:
     networks:
       - napcat-net
 
-  # User account: Kimi Code / MCP drives this QQ to send test messages.
-  napcat-user:
-    image: mlikiowa/napcat-docker:latest
-    container_name: napcat-user
-    restart: unless-stopped
-    environment:
-      - NAPCAT_UID=${NAPCAT_UID:-1000}
-      - NAPCAT_GID=${NAPCAT_GID:-1000}
-      - ACCOUNT=${NAPCAT_USER_ACCOUNT:-1925016834}
-    ports:
-      # OneBot v11 HTTP API (MCP sends messages here).
-      - "${NAPCAT_USER_HTTP_PORT:-3000}:3000"
-      # OneBot v11 forward WebSocket server (MCP listens here).
-      - "${NAPCAT_USER_WS_PORT:-3002}:3002"
-      # NapCat WebUI for QR login.
-      - "${NAPCAT_USER_WEBUI_PORT:-6100}:6100"
-    volumes:
-      - ./napcat-config:/app/napcat/config
-      - napcat-qq-user:/app/.config/QQ
-    networks:
-      - napcat-net
-
 networks:
   napcat-net:
     driver: bridge
 
 volumes:
   napcat-qq-bot:
-  napcat-qq-user:

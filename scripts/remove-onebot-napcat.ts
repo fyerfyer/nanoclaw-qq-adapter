@@ -26,7 +26,6 @@ function main(): void {
   validateHost(hostDir);
   removeAdapterDirectory(hostDir);
   unwireBarrel(hostDir);
-  removeDependency(hostDir);
 
   if (!options.skipPnpm) {
     runPnpm(hostDir, 'install');
@@ -37,7 +36,7 @@ function main(): void {
   log('info', 'Removal complete.');
   log(
     'warn',
-    'Napcat environment variables in .env were not modified; remove them manually if desired.',
+    'Shared ws dependencies and Napcat environment variables were left untouched; remove them manually only if no other channel needs them.',
   );
 }
 
@@ -107,36 +106,6 @@ function unwireBarrel(hostDir: string): void {
   const filtered = lines.filter((line) => line.trim() !== importLine);
   writeFileSync(barrelPath, filtered.join('\n'), 'utf-8');
   log('info', 'Removed onebot-napcat from channel barrel');
-}
-
-function removeDependency(hostDir: string): void {
-  const packagePath = join(hostDir, 'package.json');
-  const pkg = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
-    dependencies?: Record<string, string>;
-    devDependencies?: Record<string, string>;
-  };
-
-  let changed = false;
-
-  if (pkg.dependencies?.ws) {
-    delete pkg.dependencies.ws;
-    changed = true;
-  }
-  if (pkg.devDependencies?.['@types/ws']) {
-    delete pkg.devDependencies['@types/ws'];
-    changed = true;
-  }
-
-  if (!changed) {
-    log('info', 'Host does not depend on ws; skipping dependency update');
-    return;
-  }
-
-  writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf-8');
-  log(
-    'warn',
-    'Removed ws and @types/ws from host package.json. If other channels rely on ws, re-add them manually.',
-  );
 }
 
 function runPnpm(hostDir: string, ...args: string[]): void {

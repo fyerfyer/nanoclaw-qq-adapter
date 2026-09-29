@@ -5,9 +5,8 @@ import 'dotenv/config';
  *
  * Prerequisites:
  *   - docker-compose.test.yml stack running
- *   - bot (3384461856) online on WS 3001 / HTTP 3100
- *   - user-b (2101197401) online on HTTP 3003 / WS 3004
- *   - user-b is a member of group 922216566
+ *   - bot and user-b account variables are set in .env
+ *   - user-b is a member of NAPCAT_TEST_GROUP_ID
  *
  * The script listens on user-b's OneBot WS (3004) for messages FROM the bot,
  * sends admin commands via user-b's HTTP API, and asserts the replies.
@@ -19,13 +18,21 @@ import { createOneBotNapCatAdapter } from '../src/onebot-napcat.js';
 import type { ChannelSetup } from '../src/vendor/nanoclaw-adapter-types.js';
 import type { OneBotEvent } from '../src/protocol/onebot-v11.js';
 
-const TOKEN = process.env.NAPCAT_ACCESS_TOKEN || 'nanoclaw-test-token';
-const BOT_QQ = 3384461856;
-const USER_B_QQ = 2101197401;
-const USER_A_QQ = 2157875424;
-const GROUP_ID = 922216566;
-const USER_B_HTTP = 'http://127.0.0.1:3003';
-const USER_B_WS = 'ws://127.0.0.1:3004';
+const TOKEN = process.env.NAPCAT_ACCESS_TOKEN || '';
+function requiredNumber(name: string): number {
+  const value = process.env[name]?.trim();
+  if (!value || !/^\d+$/.test(value)) {
+    throw new Error(`Set ${name} to a numeric QQ/group ID before running this E2E test`);
+  }
+  return Number(value);
+}
+
+const BOT_QQ = requiredNumber('NAPCAT_BOT_ACCOUNT');
+const USER_B_QQ = requiredNumber('NAPCAT_USER_B_ACCOUNT');
+const USER_A_QQ = requiredNumber('NAPCAT_USER_A_ACCOUNT');
+const GROUP_ID = requiredNumber('NAPCAT_TEST_GROUP_ID');
+const USER_B_HTTP = process.env.NAPCAT_USER_B_HTTP_URL || `http://127.0.0.1:${process.env.NAPCAT_USER_B_HTTP_PORT || '3003'}`;
+const USER_B_WS = process.env.NAPCAT_USER_B_WS_URL || `ws://127.0.0.1:${process.env.NAPCAT_USER_B_WS_PORT || '3004'}`;
 
 let inboundCount = 0;
 

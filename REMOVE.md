@@ -12,7 +12,7 @@ The script will:
 
 1. Delete `<host>/src/channels/onebot-napcat/`
 2. Remove `import './onebot-napcat.js';` from `<host>/src/channels/index.ts`
-3. Remove `ws` from `<host>/package.json`
+3. Leave shared `ws` dependencies in `<host>/package.json`; remove them manually only after checking that no other channel uses them.
 4. Run `pnpm install` in the host directory
 
 Your `.env` Napcat variables are left untouched so you don't lose configuration; remove them manually if desired.
@@ -33,7 +33,7 @@ If you prefer to revert the changes by hand:
    import './onebot-napcat.js';
    ```
 
-3. Remove `ws` from `<NANOCLAW_HOST_ROOT>/package.json` if no other channel needs it.
+3. The removal script intentionally leaves `ws` and `@types/ws` in `package.json`, because other channels may share them. Remove them manually only after checking the host dependency graph.
 
 4. Run `pnpm install` in the host directory.
 

@@ -23,14 +23,30 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 COMPOSE_FILE="$PROJECT_DIR/docker-compose.test.yml"
 
-TOKEN="${NAPCAT_ACCESS_TOKEN:-nanoclaw-test-token}"
-BOT_HTTP="http://127.0.0.1:3100"
-USER_A_HTTP="http://127.0.0.1:3000"
-USER_B_HTTP="http://127.0.0.1:3003"
-BOT_QQ="3384461856"
-USER_A_QQ="2157875424"
-USER_B_QQ="2101197401"
-GROUP_ID="922216566"
+# Read only the keys this script consumes; do not source/execute a dotenv file.
+if [ -f "$PROJECT_DIR/.env" ]; then
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      NAPCAT_ACCESS_TOKEN=*) NAPCAT_ACCESS_TOKEN="${line#*=}" ;;
+      NAPCAT_BOT_ACCOUNT=*) NAPCAT_BOT_ACCOUNT="${line#*=}" ;;
+      NAPCAT_USER_A_ACCOUNT=*) NAPCAT_USER_A_ACCOUNT="${line#*=}" ;;
+      NAPCAT_USER_B_ACCOUNT=*) NAPCAT_USER_B_ACCOUNT="${line#*=}" ;;
+      NAPCAT_BOT_HTTP_PORT=*) NAPCAT_BOT_HTTP_PORT="${line#*=}" ;;
+      NAPCAT_USER_A_HTTP_PORT=*) NAPCAT_USER_A_HTTP_PORT="${line#*=}" ;;
+      NAPCAT_USER_B_HTTP_PORT=*) NAPCAT_USER_B_HTTP_PORT="${line#*=}" ;;
+      NAPCAT_TEST_GROUP_ID=*) NAPCAT_TEST_GROUP_ID="${line#*=}" ;;
+    esac
+  done < "$PROJECT_DIR/.env"
+fi
+
+TOKEN="${NAPCAT_ACCESS_TOKEN:-}"
+BOT_HTTP="http://127.0.0.1:${NAPCAT_BOT_HTTP_PORT:-3100}"
+USER_A_HTTP="http://127.0.0.1:${NAPCAT_USER_A_HTTP_PORT:-3000}"
+USER_B_HTTP="http://127.0.0.1:${NAPCAT_USER_B_HTTP_PORT:-3003}"
+BOT_QQ="${NAPCAT_BOT_ACCOUNT:?Set NAPCAT_BOT_ACCOUNT in .env}"
+USER_A_QQ="${NAPCAT_USER_A_ACCOUNT:?Set NAPCAT_USER_A_ACCOUNT in .env}"
+USER_B_QQ="${NAPCAT_USER_B_ACCOUNT:?Set NAPCAT_USER_B_ACCOUNT in .env}"
+GROUP_ID="${NAPCAT_TEST_GROUP_ID:?Set NAPCAT_TEST_GROUP_ID in .env}"
 HEALTH_LOG="/tmp/nanoclaw-health.log"
 HEALTH_PID_FILE="/tmp/nanoclaw-health.pid"
 

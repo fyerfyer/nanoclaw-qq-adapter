@@ -2,6 +2,8 @@
 
 A NanoClaw v2 channel adapter that connects to [NapCat](https://github.com/NapNeko/NapCat) through the OneBot v11 protocol, enabling QQ private and group chat integration.
 
+This repository is an installable NanoClaw channel adapter, not a standalone Agent runtime or QQ gateway. NanoClaw owns routing, sessions, permissions, agent groups and delivery scheduling; this project owns the OneBot transport and QQ message conversion. A truly standalone gateway would need a separate host protocol and runtime.
+
 This repository covers **all five implementation phases**: protocol connection, inbound/outbound messaging, rich media and `@` mentions, access control with group management, and skill packaging with tests.
 
 ## Features
@@ -26,8 +28,8 @@ The recommended way to use this adapter is to install it into a NanoClaw v2 fork
 
 1. Open your NanoClaw host checkout.
 2. Run `/add-onebot-napcat` in Claude Code (or invoke the skill directly).
-3. The skill will copy the adapter source into `src/channels/onebot-napcat/`, wire the channel barrel, install the `ws` dependency, seed `.env`, and build the host.
-4. Fill in `.env` (see Configuration below) and restart NanoClaw.
+3. The skill will copy the adapter source into `src/channels/onebot-napcat/`, wire the channel barrel, install the `ws` dependency, seed missing `.env` keys, and build the host.
+4. Fill in `.env` (see Configuration below), start NapCat and NanoClaw, then run NanoClaw's `/init-first-agent` and `/manage-channels` flow to create owner/wiring rows.
 
 ### Manual install
 
@@ -39,7 +41,7 @@ tsx scripts/install-onebot-napcat.ts --host-dir /path/to/nanoclaw
 
 To remove the adapter later, see [REMOVE.md](./REMOVE.md).
 
-## Standalone development
+## Adapter development
 
 ```bash
 pnpm install
@@ -57,12 +59,12 @@ cp .env.example .env
 |----------|----------|-------------|
 | `NAPCAT_WS_URL` | Yes | NapCat forward WebSocket URL, e.g. `ws://127.0.0.1:3001` |
 | `NAPCAT_ACCESS_TOKEN` | No | Access token if NapCat WS server requires auth |
-| `NAPCAT_SELF_ID` | No | Bot QQ number; used to filter self-messages and detect `@` mentions |
+| `NAPCAT_SELF_ID` | No | Optional bot QQ number; if empty, the adapter uses OneBot `get_login_info` |
 | `NAPCAT_ALLOWED_USERS` | No | Comma-separated QQ numbers allowed in private chat |
 | `NAPCAT_ALLOWED_GROUPS` | No | Comma-separated group IDs allowed |
 | `NAPCAT_BLOCKED_USERS` | No | Comma-separated QQ numbers to block |
 | `NAPCAT_BLOCKED_GROUPS` | No | Comma-separated group IDs to block |
-| `NAPCAT_ADMINS` | No | Comma-separated admin QQ numbers |
+| `NAPCAT_ADMINS` | No | Comma-separated QQ numbers authorized for Adapter-local admin commands |
 | `NAPCAT_REQUIRE_AT_IN_GROUP` | No | Default `true`; treat group messages as mentions only when `@bot` |
 | `NAPCAT_MAX_TEXT_LENGTH` | No | Default `4500`; outgoing text longer than this is split |
 | `NAPCAT_WELCOME_MSG` | No | Welcome message sent when a user joins a group; `{user_id}` is replaced |
@@ -73,6 +75,7 @@ cp .env.example .env
 - If `NAPCAT_ALLOWED_USERS` or `NAPCAT_ALLOWED_GROUPS` is set, messages from IDs not in the list are silently dropped.
 - IDs in `NAPCAT_BLOCKED_USERS` or `NAPCAT_BLOCKED_GROUPS` are always rejected, even if they also appear in an allowlist.
 - Admin commands bypass normal access control so admins can manage the bot even from a blocked context.
+- These settings are only the Adapter layer. NanoClaw owner/admin/member roles, `unknown_sender_policy`, and which QQ conversations reach an Agent are configured in NanoClaw's database wirings.
 
 ## Admin commands
 
@@ -101,10 +104,10 @@ A real NapCat container is provided so the adapter can be tested against live in
 mkdir -p napcat-config
 
 # Start NapCat
-docker compose up -d napcat
+docker compose up -d napcat-bot
 
 # View logs / QR code for login
-docker logs -f napcat
+docker logs -f napcat-bot
 ```
 
 After the container starts:
@@ -125,11 +128,11 @@ docker compose -f docker-compose.test.yml up -d
 
 It starts three NapCat instances:
 
-| Container | QQ | Role | OneBot HTTP | OneBot WS | WebUI |
+| Container | Account variable | Role | OneBot HTTP | OneBot WS | WebUI |
 |---|---|---|---|---|---|
-| `napcat-bot` | `3384461856` | NanoClaw Bot | 3100 | 3001 | 6099 |
-| `napcat-user-a` | `2157875424` | Test robot A | 3000 | 3002 | 6100 |
-| `napcat-user-b` | `2101197401` | Test robot B | 3003 | 3004 | 6101 |
+| `napcat-bot` | `NAPCAT_BOT_ACCOUNT` | NanoClaw Bot | `NAPCAT_BOT_HTTP_PORT` | `NAPCAT_BOT_WS_PORT` | `NAPCAT_BOT_WEBUI_PORT` |
+| `napcat-user-a` | `NAPCAT_USER_A_ACCOUNT` | Optional test user A | `NAPCAT_USER_A_HTTP_PORT` | `NAPCAT_USER_A_WS_PORT` | `NAPCAT_USER_A_WEBUI_PORT` |
+| `napcat-user-b` | `NAPCAT_USER_B_ACCOUNT` | Optional test user B | `NAPCAT_USER_B_HTTP_PORT` | `NAPCAT_USER_B_WS_PORT` | `NAPCAT_USER_B_WEBUI_PORT` |
 
 Each container mounts its **own** config directory (`napcat-config-test/bot`,
 `napcat-config-test/user-a`, `napcat-config-test/user-b`) so the per-account
@@ -138,7 +141,7 @@ populate them the same way as `napcat-config/` (per-account
 `onebot11_<qq>.json` with the ports above, plus `napcat.json` and
 `webui.json`), or configure each instance through its WebUI on first run.
 
-Edit `.env.example` / `.env` to match the ports and accounts you use.
+Set the account variables and `NAPCAT_TEST_GROUP_ID` in your private `.env`; the repository intentionally ships placeholders rather than real QQ IDs.
 
 ## QQ Health Check
 
@@ -182,19 +185,19 @@ pnpm typecheck
 pnpm build
 ```
 
-## Integrating into NanoClaw Host
+## NanoClaw Integration Model
 
-This repository is designed to be installed into a NanoClaw v2 fork under `src/channels/onebot-napcat/`. The recommended way is the `/add-onebot-napcat` skill (see above). For manual integration, run the same steps the installer performs:
+The adapter is designed to be installed into a NanoClaw v2 fork under `src/channels/onebot-napcat/`. The `/add-onebot-napcat` skill or installer handles source registration; it does not create users, agents or database wirings:
 
-1. Copy the runtime source (skip `*.test.ts`) into `src/channels/onebot-napcat/`.
-2. Rewrite the vendored imports:
-   - `./vendor/nanoclaw-adapter-types.js` → `../adapter.js`
-   - `../vendor/nanoclaw-adapter-types.js` → `../../adapter.js`
-   - `./vendor/channel-registry.js` → `../channel-registry.js`
-3. Delete the copied `vendor/` directory.
-4. Append `import './onebot-napcat/onebot-napcat.js';` to `src/channels/index.ts`.
+1. Install the Adapter and configure the NapCat forward WebSocket URL/token.
+2. Start NanoClaw and NapCat; verify the Adapter registration and OneBot login.
+3. Run NanoClaw `/init-first-agent` once to create the first agent group and owner DM wiring.
+4. Use `/manage-channels`, `ncl messaging-groups`, and `ncl wirings` to add QQ DMs/groups and bind them to an agent group. For multiple people, add each person's DM wiring or set the group's `unknown_sender_policy`; do not add them to Adapter source code.
+5. Test one DM, then a group mention. A message received by the Adapter but lacking a matching NanoClaw wiring is expected to be dropped by the host.
 
 The adapter self-registers on import via `registerChannelAdapter('onebot-napcat', …)`; the factory returns `null` when `NAPCAT_WS_URL` is unset so the host skips the channel gracefully.
+
+For uninstall, the script removes only the Adapter copy and barrel registration. It preserves `.env`, NanoClaw database rows, and shared `ws` dependencies so another channel is not accidentally broken.
 
 ## Project Structure
 

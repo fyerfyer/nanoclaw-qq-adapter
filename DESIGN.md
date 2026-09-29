@@ -6,6 +6,8 @@
 
 交付形态为独立的 skill/adapter 包，用户通过 NanoClaw 的 `/add-onebot-napcat` 技能将其安装到自己的 NanoClaw fork 中，而不是维护一个完整的 NanoClaw fork。
 
+本项目的“独立”指可独立发布、安装和测试的渠道适配器，不代表脱离 NanoClaw 后仍能独立运行 Agent。账号、用户、群聊和 agent wiring 都是宿主实例状态，不能进入适配器源码或通用 skill。
+
 ## 2. 设计目标
 
 - **最小可用**：第一版只采用正向 WebSocket 连接，降低部署与维护复杂度。
@@ -44,7 +46,7 @@ QQ 用户 / QQ 群
 |------|------|
 | 入站 | 维护与 NapCat 的正向 WebSocket 连接；接收 OneBot v11 事件；将消息、通知、请求事件转换为 NanoClaw 可识别的 `InboundMessage`；执行黑白名单过滤；识别群聊中的 `@机器人`；处理入群/退群等通知。 |
 | 出站 | 从 NanoClaw `outbound.db` 拿到回复后，根据目标平台 ID 调用 `send_private_msg` 或 `send_group_msg`；将 NanoClaw 的文本/文件/图片转换为 OneBot 消息段；对超长文本进行拆分。 |
-| 群管 | 拦截管理员发送的 `/status`、`/mute`、`/kick`、`/allow`、`/block` 等命令，直接调用 OneBot 群管理接口，不交给 Agent 处理。 |
+| 群管 | 对 `NAPCAT_ADMINS` 中的 QQ 号拦截 `/status`、`/mute`、`/kick`、`/allow`、`/block` 等 Adapter-local 命令，直接调用 OneBot 群管理接口，不交给 Agent 处理。NanoClaw owner/admin/member 由 host 管理。 |
 | 生命周期 | 提供 `setup`、`teardown`、`isConnected` 方法，供 NanoClaw host 统一调度。 |
 
 ## 5. 接口来源、一致性与不 fork 的用法

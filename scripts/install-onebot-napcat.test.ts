@@ -114,6 +114,35 @@ describe('install-onebot-napcat', () => {
     expect(envContent).toContain('NAPCAT_ADMINS=');
   });
 
+  it('fills missing .env keys without replacing existing values', () => {
+    writeFileSync(join(hostDir, '.env'), 'NAPCAT_WS_URL=ws://custom:9999\nEXISTING_VAR=1\n');
+    const result = runInstall(hostDir);
+    expect(result.status).toBe(0);
+
+    const envContent = readFileSync(join(hostDir, '.env'), 'utf-8');
+    expect(envContent).toContain('NAPCAT_WS_URL=ws://custom:9999');
+    expect(envContent).toContain('NAPCAT_ACCESS_TOKEN=');
+    expect(envContent).toContain('NAPCAT_GOODBYE_MSG=');
+    expect(envContent).not.toContain('NAPCAT_WS_URL=ws://127.0.0.1:3001');
+  });
+
+  it('preserves a host-owned adapter copy unless --force is used', () => {
+    const adapterDir = join(hostDir, 'src', 'channels', 'onebot-napcat');
+    writeFileSync(adapterDir, 'host-owned');
+
+    const result = runInstall(hostDir);
+    expect(result.status).toBe(0);
+    expect(readFileSync(adapterDir, 'utf-8')).toBe('host-owned');
+
+    const forced = spawnSync(
+      'pnpm',
+      ['exec', 'tsx', 'scripts/install-onebot-napcat.ts', '--host-dir', hostDir, '--skip-pnpm', '--force'],
+      { cwd: process.cwd(), encoding: 'utf-8' },
+    );
+    expect(forced.status).toBe(0);
+    expect(existsSync(join(adapterDir, 'onebot-napcat.ts'))).toBe(true);
+  });
+
   it('is idempotent on a second run', () => {
     runInstall(hostDir);
     const second = runInstall(hostDir);
@@ -150,11 +179,16 @@ describe('remove-onebot-napcat', () => {
     expect(content).toContain("import './cli.js';");
   });
 
-  it('removes the ws dependency', () => {
+  it('preserves shared ws dependencies during removal', () => {
+    const packagePath = join(hostDir, 'package.json');
+    const pkg = JSON.parse(readFileSync(packagePath, 'utf-8')) as { dependencies?: Record<string, string> };
+    pkg.dependencies = { ...(pkg.dependencies ?? {}), ws: '^8.18.2', 'other-channel': '^1.0.0' };
+    writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`);
     runRemove(hostDir);
-    const pkg = JSON.parse(readFileSync(join(hostDir, 'package.json'), 'utf-8')) as {
+    const after = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
       dependencies?: Record<string, string>;
     };
-    expect(pkg.dependencies?.ws).toBeUndefined();
+    expect(after.dependencies?.ws).toBe('^8.18.2');
+    expect(after.dependencies?.['other-channel']).toBe('^1.0.0');
   });
 });

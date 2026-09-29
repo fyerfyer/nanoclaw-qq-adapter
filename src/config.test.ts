@@ -13,8 +13,8 @@ describe('loadConfig', () => {
         [
           'NAPCAT_WS_URL=ws://127.0.0.1:3001',
           'NAPCAT_ACCESS_TOKEN="file-token"',
-          'NAPCAT_SELF_ID=3384461856',
-          'NAPCAT_ADMINS=2101197401, 2157875424',
+          'NAPCAT_SELF_ID=123456789',
+          'NAPCAT_ADMINS=234567890, 345678901',
           'NAPCAT_REQUIRE_AT_IN_GROUP=false',
           'NAPCAT_MAX_TEXT_LENGTH=1234',
         ].join('\n'),
@@ -24,8 +24,8 @@ describe('loadConfig', () => {
 
       expect(config.wsUrl).toBe('ws://127.0.0.1:3001');
       expect(config.accessToken).toBe('file-token');
-      expect(config.selfId).toBe('3384461856');
-      expect(config.admins).toEqual(new Set(['2101197401', '2157875424']));
+      expect(config.selfId).toBe('123456789');
+      expect(config.admins).toEqual(new Set(['234567890', '345678901']));
       expect(config.requireAtInGroup).toBe(false);
       expect(config.maxTextLength).toBe(1234);
     } finally {
