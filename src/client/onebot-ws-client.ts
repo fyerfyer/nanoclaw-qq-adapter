@@ -115,7 +115,7 @@ export class OneBotWsClient {
   }
 
   private openConnection(): void {
-    if (this.disposed) return;
+    if (this.disposed || this.ws) return;
 
     this.logger.info('Connecting to OneBot WS server', { url: this.wsUrl });
 
@@ -236,6 +236,7 @@ export class OneBotWsClient {
   private resetHeartbeat(timeoutMs: number): void {
     this.stopHeartbeat();
     this.heartbeatTimer = setTimeout(() => {
+      if (this.disposed || !this.ws) return;
       this.logger.warn('OneBot heartbeat timeout, forcing reconnect');
       this.closeConnection(4000, 'heartbeat timeout');
       this.scheduleReconnect();
