@@ -1,5 +1,19 @@
+# NanoClaw OneBot Napcat QQ test stack.
+#
+# One `docker compose up -d` brings up all three NapCat instances used by the
+# adapter test flow (see .agents/skills/qq-bot-debug/SKILL.md):
+#
+#   napcat-bot    3384461856  the NanoClaw bot account — the Adapter connects
+#                             to its OneBot WS on 3001 (NAPCAT_WS_URL).
+#   napcat-user-a 2157875424  spare test account (multi-user group tests).
+#   napcat-user-b 2101197401  primary test driver account (curl/MCP sends from
+#                             this QQ via its HTTP API on 3003).
+#
+# Per-instance NapCat config lives in napcat-config-test/<role>/ (gitignored,
+# contains the WebUI token). QQ login data lives in the named volumes and
+# survives container recreation; a fresh QQ login still requires scanning the
+# QR code in the container logs or the WebUI after the first start.
 services:
-  # NanoClaw Bot account: the Adapter connects to this NapCat instance.
   napcat-bot:
     image: mlikiowa/napcat-docker:latest
     container_name: napcat-bot
@@ -7,17 +21,59 @@ services:
     environment:
       - NAPCAT_UID=${NAPCAT_UID:-1000}
       - NAPCAT_GID=${NAPCAT_GID:-1000}
-      - ACCOUNT=${NAPCAT_BOT_ACCOUNT:?Set NAPCAT_BOT_ACCOUNT in .env}
+      - ACCOUNT=3384461856
     ports:
       # OneBot v11 forward WebSocket server (Adapter connects here).
-      - "${NAPCAT_BOT_WS_PORT:-3001}:3001"
-      # NapCat WebUI for QR login and OneBot configuration.
-      - "${NAPCAT_BOT_WEBUI_PORT:-6099}:6099"
-      # Optional OneBot v11 HTTP API for direct bot-side tests.
-      - "${NAPCAT_BOT_HTTP_PORT:-3100}:3100"
+      - "3001:3001"
+      # OneBot v11 HTTP API (health checks, get_login_info).
+      - "3100:3100"
+      # NapCat WebUI for QR login.
+      - "6099:6099"
     volumes:
-      - ./napcat-config:/app/napcat/config
+      - ./napcat-config-test/bot:/app/napcat/config
       - napcat-qq-bot:/app/.config/QQ
+    networks:
+      - napcat-net
+
+  napcat-user-a:
+    image: mlikiowa/napcat-docker:latest
+    container_name: napcat-user-a
+    restart: unless-stopped
+    environment:
+      - NAPCAT_UID=${NAPCAT_UID:-1000}
+      - NAPCAT_GID=${NAPCAT_GID:-1000}
+      - ACCOUNT=2157875424
+    ports:
+      # OneBot v11 HTTP API.
+      - "3000:3000"
+      # OneBot v11 forward WebSocket server.
+      - "3002:3002"
+      # NapCat WebUI for QR login.
+      - "6100:6100"
+    volumes:
+      - ./napcat-config-test/user-a:/app/napcat/config
+      - napcat-qq-user-a:/app/.config/QQ
+    networks:
+      - napcat-net
+
+  napcat-user-b:
+    image: mlikiowa/napcat-docker:latest
+    container_name: napcat-user-b
+    restart: unless-stopped
+    environment:
+      - NAPCAT_UID=${NAPCAT_UID:-1000}
+      - NAPCAT_GID=${NAPCAT_GID:-1000}
+      - ACCOUNT=2101197401
+    ports:
+      # OneBot v11 HTTP API (test messages are sent from this account).
+      - "3003:3003"
+      # OneBot v11 forward WebSocket server.
+      - "3004:3004"
+      # NapCat WebUI for QR login.
+      - "6101:6101"
+    volumes:
+      - ./napcat-config-test/user-b:/app/napcat/config
+      - napcat-qq-user-b:/app/.config/QQ
     networks:
       - napcat-net
 
@@ -27,3 +83,5 @@ networks:
 
 volumes:
   napcat-qq-bot:
+  napcat-qq-user-a:
+  napcat-qq-user-b:
