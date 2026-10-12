@@ -33,7 +33,10 @@ export interface OneBotNapcatAdapterOptions {
 /**
  * Wiring-time defaults declared for the QQ channel.
  * - DM: every message engages (QQ DMs are always directed at the bot).
- * - Group: only @bot mentions engage, then stick for the session.
+ * - Group: only @bot mentions engage. 'mention-sticky' is deliberately NOT
+ *   declared: the host coerces it to 'mention' anyway when the adapter does
+ *   not honor thread ids (supportsThreads=false), so the honest default is
+ *   'mention' — every group message must @ the bot.
  */
 const CHANNEL_DEFAULTS: ChannelDefaults = {
   dm: {
@@ -43,7 +46,7 @@ const CHANNEL_DEFAULTS: ChannelDefaults = {
     unknownSenderPolicy: 'decline_notify',
   },
   group: {
-    engageMode: 'mention-sticky',
+    engageMode: 'mention',
     threads: false,
     unknownSenderPolicy: 'request_approval',
   },

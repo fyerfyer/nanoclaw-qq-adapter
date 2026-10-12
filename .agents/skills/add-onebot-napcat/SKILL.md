@@ -104,11 +104,36 @@ metadata:
    pnpm run build
    ```
 
-2. **启动 NapCat**
+2. **清除 upgrade tripwire（关键，易漏）**
 
-   参考 adapter 仓库的 `docker-compose.test.yml` 或单独部署 NapCat，启用 OneBot v11 forward WebSocket server，端口与 `.env` 中的 `NAPCAT_WS_URL` 一致。
+   安装脚本改了 host 源码树，NanoClaw 的 upgrade tripwire 会拒绝启动并崩溃循环（日志报 "update did not go through the supported path"）。本地定制提交属于文档允许的例外，确认构建通过后盖章并重启服务：
 
-3. **运行健康检查**
+   ```bash
+   pnpm exec tsx scripts/upgrade-state.ts set
+   systemctl --user restart <nanoclaw-unit>   # Linux；macOS 用 launchctl kickstart
+   ```
+
+   详见 host 的 `docs/upgrade-recovery.md`。不要对此运行 `/update-nanoclaw`。
+
+3. **确认 Adapter 已连接**
+
+   `logs/nanoclaw.log` 中应出现：
+
+   ```
+   Channel adapter started channel="onebot-napcat" type="qq" instance="qq"
+   OneBot WS connected
+   OneBot login info { user_id: <botQQ>, nickname: ... }
+   ```
+
+   Adapter 侧有指数退避重连，NapCat 晚于 host 启动时会自动连上，无需重启 host。
+
+4. **启动 NapCat**
+
+   用 adapter 仓库的 `docker-compose.yml`（自包含三账号测试栈）或单独部署 NapCat，启用 OneBot v11 forward WebSocket server，端口与 `.env` 中的 `NAPCAT_WS_URL` 一致。
+
+   注意：**重建/重启 NapCat 容器可能使 QQ 会话失效**，需要重新扫码。无人值守场景可部署 adapter 仓库的 `scripts/napcat-watchdog.sh`（systemd user service），掉线自动重启容器尝试快速重登并记录日志。
+
+5. **运行健康检查**
 
    在 adapter 仓库中：
 

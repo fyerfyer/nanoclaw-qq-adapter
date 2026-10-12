@@ -38,7 +38,7 @@ scripts/qq-debug.sh
 
 ## 测试环境架构
 
-项目已配置三账号 NapCat 测试栈（`docker-compose.test.yml`）：
+项目已配置三账号 NapCat 测试栈（`docker-compose.yml`）：
 
 | 容器 | QQ | 角色 | OneBot HTTP | OneBot WS | WebUI |
 |---|---|---|---|---|---|
@@ -62,8 +62,8 @@ MCP 工具：`qq-agent` 已注册在 `~/.kimi-code/mcp.json`，指向 `210119740
 ### 1. 启动/检查 NapCat 测试栈
 
 ```bash
-docker compose -f docker-compose.test.yml up -d
-docker compose -f docker-compose.test.yml ps
+docker compose -f docker-compose.yml up -d
+docker compose -f docker-compose.yml ps
 ```
 
 首次启动或账号被踢下线后，需要手动扫码登录：
@@ -137,15 +137,20 @@ health check / echo 只验证通路。要验证 NanoClaw 的 actual 功能，需
 
 ### 4. 不使用 MCP 时的兜底方案
 
-如果 MCP 未生效，可直接 curl OneBot HTTP API：
+如果 MCP 未生效，可直接 curl OneBot HTTP API 发送消息，并用消息历史接口**验证 Bot 回复**（比盯日志更直接）：
 
-**私聊：**
+**私聊（从 user-b 的 3003 端口发送 + 读历史）：**
 
 ```bash
 curl -s -X POST http://127.0.0.1:3003/send_private_msg \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer nanoclaw-test-token" \
   -d '{"user_id":3384461856,"message":[{"type":"text","data":{"text":"ping"}}]}'
+
+curl -s -X POST http://127.0.0.1:3003/get_friend_msg_history \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer nanoclaw-test-token" \
+  -d '{"user_id":3384461856,"count":5}'
 ```
 
 **群聊：**
@@ -155,7 +160,14 @@ curl -s -X POST http://127.0.0.1:3003/send_group_msg \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer nanoclaw-test-token" \
   -d '{"group_id":922216566,"message":[{"type":"at","data":{"qq":3384461856}},{"type":"text","data":{"text":" ping"}}]}'
+
+curl -s -X POST http://127.0.0.1:3003/get_group_msg_history \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer nanoclaw-test-token" \
+  -d '{"group_id":922216566,"count":5}'
 ```
+
+如果 Bot 回复的是 "The agent run failed. Check the logs for details."，说明消息链路正常但 agent 容器内出错——`docker ps` 找到 `ncl-*-sess-*` 容器用 `docker logs` 查看真实错误（容器退出后日志丢失，要在存活期间抓）。
 
 ## 失败处理速查
 
@@ -191,7 +203,7 @@ curl -s -X POST http://127.0.0.1:3003/send_group_msg \
 
 ```bash
 # 停止测试栈
-docker compose -f docker-compose.test.yml down
+docker compose -f docker-compose.yml down
 
 # 停止后台运行的 health check
 pkill -f "scripts/qq-health-check.ts"
